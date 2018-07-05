@@ -1,11 +1,11 @@
 use actix::prelude::*;
 use std::fmt;
 use std::error::Error;
+use rand;
 
 #[derive(Debug)]
 pub enum SupervisedActorError {
-    RandomFailure,
-    Stopped,
+    GotScared,
 }
 
 impl Error for SupervisedActorError {
@@ -13,8 +13,7 @@ impl Error for SupervisedActorError {
         use self::SupervisedActorError::*;
 
         match *self {
-            RandomFailure => "some random failure occurred",
-            Stopped => "the actor was stopped",
+            GotScared => "something scared enough to shutdown\n",
         }
     }
 }
@@ -68,9 +67,15 @@ impl Handler<DeathThreat> for SupervisedActor {
 
     fn handle(&mut self, _: DeathThreat, ctx: &mut Context<Self>) -> Self::Result {
         info!("Received death threat, committing supuku before they can get to me.");
-        ctx.stop();
 
-        Ok(String::from("shutting down supervised actor after receiving a death threat\n"))
+        // 50/50 whether we believe the death threat
+        if rand::random() {
+            // We believe
+            ctx.stop();
+            Err(SupervisedActorError::GotScared)
+        } else {
+            Ok(String::from("We're doing just fine\n"))
+        }
     }
 }
 

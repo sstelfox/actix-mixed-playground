@@ -3,6 +3,7 @@ extern crate actix_web;
 extern crate dotenv;
 extern crate env_logger;
 extern crate futures;
+extern crate rand;
 
 #[macro_use]
 extern crate log;
@@ -18,10 +19,17 @@ fn index(_req: HttpRequest) -> impl Future<Item = HttpResponse, Error = Error> {
     let act = Arbiter::system_registry().get::<supervised_actor::SupervisedActor>();
     act.send(supervised_actor::DeathThreat)
         .from_err()
-        .and_then(|resp| {
-            Ok(HttpResponse::Ok()
-                .body(resp.unwrap())
-                .into())
+        .and_then(|res| {
+            match res {
+                Ok(msg) => {
+                    Ok(HttpResponse::Ok()
+                        .body(msg)
+                        .into())
+                }
+                Err(_) => {
+                    Ok(HttpResponse::InternalServerError().into())
+                }
+            }
         })
 }
 
