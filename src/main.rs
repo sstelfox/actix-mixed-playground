@@ -15,34 +15,52 @@ use futures::Future;
 
 mod supervised_actor;
 
-fn threaten(_req: HttpRequest) -> impl Future<Item = HttpResponse, Error = Error> {
-    let act = Arbiter::system_registry().get::<supervised_actor::SupervisedActor>();
-    act.send(supervised_actor::DeathThreat)
-        .from_err()
-        .and_then(|res| {
-            match res {
-                Ok(msg) => { Ok(HttpResponse::Ok().body(msg).into()) }
-                Err(_) => { Ok(HttpResponse::InternalServerError().into()) }
-            }
-        })
-}
-
-fn random_work(_req: HttpRequest) -> &'static str {
-    let act = Arbiter::system_registry().get::<supervised_actor::SupervisedActor>();
-    act.do_send(supervised_actor::RandomWork);
-    "Did some random work\n"
-}
-
 fn simple(_req: HttpRequest) -> &'static str {
     let act = Arbiter::system_registry().get::<supervised_actor::SupervisedActor>();
     act.do_send(supervised_actor::Simple);
     "Did something very basic\n"
 }
 
-fn unreliable_work(_req: HttpRequest) -> &'static str {
+fn stop(_req: HttpRequest) -> &'static str {
     let act = Arbiter::system_registry().get::<supervised_actor::SupervisedActor>();
-    act.do_send(supervised_actor::UnreliableWork);
-    "Did some random work\n"
+    act.do_send(supervised_actor::StopActor);
+    "Stopping the background worker\n"
+}
+
+fn random_work(_req: HttpRequest) -> impl Future<Item = HttpResponse, Error = Error> {
+    let act = Arbiter::system_registry().get::<supervised_actor::SupervisedActor>();
+    act.send(supervised_actor::RandomWork)
+        .from_err()
+        .and_then(|res| {
+            match res {
+                Ok(num) => {
+                    let msg = format!("Received random number: {}\n", num);
+                    Ok(HttpResponse::Ok().body(msg).into())
+                }
+                Err(err) => {
+                    let err_msg = format!("An error occurred: {}\n", err);
+                    Ok(HttpResponse::InternalServerError().body(err_msg).into())
+                }
+            }
+        })
+}
+
+fn unreliable_work(_req: HttpRequest) -> impl Future<Item = HttpResponse, Error = Error> {
+    let act = Arbiter::system_registry().get::<supervised_actor::SupervisedActor>();
+    act.send(supervised_actor::UnreliableWork)
+        .from_err()
+        .and_then(|res| {
+            match res {
+                Ok(status) => {
+                    let msg = format!("Received message: {}\n", status);
+                    Ok(HttpResponse::Ok().body(msg).into())
+                }
+                Err(err) => {
+                    let err_msg = format!("An error occurred: {}\n", err);
+                    Ok(HttpResponse::InternalServerError().body(err_msg).into())
+                }
+            }
+        })
 }
 
 fn main() {
@@ -61,9 +79,9 @@ fn main() {
         App::new()
             .middleware(middleware::Logger::default())
             .resource("/", |r| r.method(http::Method::GET).with(simple))
-            .resource("/threaten", |r| r.method(http::Method::GET).with_async(threaten))
-            .resource("/random", |r| r.method(http::Method::GET).with(random_work))
-            .resource("/unreliable", |r| r.method(http::Method::GET).with(unreliable_work))
+            .resource("/stop", |r| r.method(http::Method::GET).with(stop))
+            .resource("/random", |r| r.method(http::Method::GET).with_async(random_work))
+            .resource("/unreliable", |r| r.method(http::Method::GET).with_async(unreliable_work))
     })
         .bind("127.0.0.1:8000")
         .unwrap()
