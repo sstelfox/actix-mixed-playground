@@ -21,14 +21,8 @@ fn index(_req: HttpRequest) -> impl Future<Item = HttpResponse, Error = Error> {
         .from_err()
         .and_then(|res| {
             match res {
-                Ok(msg) => {
-                    Ok(HttpResponse::Ok()
-                        .body(msg)
-                        .into())
-                }
-                Err(_) => {
-                    Ok(HttpResponse::InternalServerError().into())
-                }
+                Ok(msg) => { Ok(HttpResponse::Ok().body(msg).into()) }
+                Err(_) => { Ok(HttpResponse::InternalServerError().into()) }
             }
         })
 }
