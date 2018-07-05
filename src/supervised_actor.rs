@@ -1,13 +1,41 @@
 use actix::prelude::*;
+use std::fmt;
+use std::error::Error;
 
-#[derive(Message)]
-pub struct DeathTest;
+#[derive(Debug)]
+pub enum SupervisedActorError {
+    RandomFailure,
+    Stopped,
+}
 
-#[derive(Message)]
-pub struct DoUnreliableWork;
+impl Error for SupervisedActorError {
+    fn description(&self) -> &str {
+        use self::SupervisedActorError::*;
+
+        match *self {
+            RandomFailure => "some random failure occurred",
+            Stopped => "the actor was stopped",
+        }
+    }
+}
+
+impl fmt::Display for SupervisedActorError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.description())
+    }
+}
+
+pub struct DeathThreat;
+
+impl Message for DeathThreat {
+    type Result = Result<String, SupervisedActorError>;
+}
 
 #[derive(Message)]
 pub struct RandomWork;
+
+#[derive(Message)]
+pub struct UnreliableWork;
 
 #[derive(Default)]
 pub struct SupervisedActor;
@@ -35,12 +63,14 @@ impl SystemService for SupervisedActor {
     }
 }
 
-impl Handler<DeathTest> for SupervisedActor {
-    type Result = ();
+impl Handler<DeathThreat> for SupervisedActor {
+    type Result = Result<String, SupervisedActorError>;
 
-    fn handle(&mut self, _: DeathTest, ctx: &mut Context<Self>) {
+    fn handle(&mut self, _: DeathThreat, ctx: &mut Context<Self>) -> Self::Result {
         info!("Received death threat, committing supuku before they can get to me.");
         ctx.stop();
+
+        Ok(String::from("shutting down supervised actor after receiving a death threat\n"))
     }
 }
 
@@ -49,6 +79,16 @@ impl Handler<RandomWork> for SupervisedActor {
 
     fn handle(&mut self, _: RandomWork, _ctx: &mut Context<Self>) {
         info!("Did some normal random work");
+    }
+}
+
+impl Handler<UnreliableWork> for SupervisedActor {
+    type Result = ();
+
+    fn handle(&mut self, _: UnreliableWork, _ctx: &mut Context<Self>) {
+        // TODO: Have some work that can fail and handle it appropriately in
+        // the web handler
+        info!("Did something that could have failed");
     }
 }
 
