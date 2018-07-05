@@ -34,6 +34,9 @@ impl Message for DeathThreat {
 pub struct RandomWork;
 
 #[derive(Message)]
+pub struct Simple;
+
+#[derive(Message)]
 pub struct UnreliableWork;
 
 #[derive(Default)]
@@ -84,6 +87,14 @@ impl Handler<RandomWork> for SupervisedActor {
 
     fn handle(&mut self, _: RandomWork, _ctx: &mut Context<Self>) {
         info!("Did some normal random work");
+    }
+}
+
+impl Handler<Simple> for SupervisedActor {
+    type Result = ();
+
+    fn handle(&mut self, _: Simple, _ctx: &mut Context<Self>) {
+        info!("Did something really basic");
     }
 }
 

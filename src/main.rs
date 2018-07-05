@@ -15,7 +15,7 @@ use futures::Future;
 
 mod supervised_actor;
 
-fn index(_req: HttpRequest) -> impl Future<Item = HttpResponse, Error = Error> {
+fn threaten(_req: HttpRequest) -> impl Future<Item = HttpResponse, Error = Error> {
     let act = Arbiter::system_registry().get::<supervised_actor::SupervisedActor>();
     act.send(supervised_actor::DeathThreat)
         .from_err()
@@ -31,6 +31,12 @@ fn random_work(_req: HttpRequest) -> &'static str {
     let act = Arbiter::system_registry().get::<supervised_actor::SupervisedActor>();
     act.do_send(supervised_actor::RandomWork);
     "Did some random work\n"
+}
+
+fn simple(_req: HttpRequest) -> &'static str {
+    let act = Arbiter::system_registry().get::<supervised_actor::SupervisedActor>();
+    act.do_send(supervised_actor::Simple);
+    "Did something very basic\n"
 }
 
 fn unreliable_work(_req: HttpRequest) -> &'static str {
@@ -54,7 +60,8 @@ fn main() {
 
         App::new()
             .middleware(middleware::Logger::default())
-            .resource("/", |r| r.method(http::Method::GET).with_async(index))
+            .resource("/", |r| r.method(http::Method::GET).with(simple))
+            .resource("/threaten", |r| r.method(http::Method::GET).with_async(threaten))
             .resource("/random", |r| r.method(http::Method::GET).with(random_work))
             .resource("/unreliable", |r| r.method(http::Method::GET).with(unreliable_work))
     })
