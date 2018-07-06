@@ -12,7 +12,8 @@ extern crate tokio_core;
 extern crate log;
 
 use actix::prelude::*;
-use actix_web::{http, middleware, server, App, Error, HttpRequest, HttpResponse};
+use actix_web::http::{self, Method};
+use actix_web::{middleware, server, App, Error, HttpRequest, HttpResponse, Result};
 use dotenv::dotenv;
 use futures::Future;
 use rand::prelude::*;
@@ -71,6 +72,10 @@ fn unreliable_work(_req: HttpRequest) -> impl Future<Item = HttpResponse, Error 
         })
 }
 
+fn not_found(_req: HttpRequest) -> Result<HttpResponse> {
+    Ok(HttpResponse::NotFound().body("Not found\n").into())
+}
+
 fn main() {
     dotenv().ok();
     env_logger::init();
@@ -93,6 +98,14 @@ fn main() {
             .resource("/stop", |r| r.method(http::Method::GET).with(stop))
             .resource("/random", |r| r.method(http::Method::GET).with_async(random_work))
             .resource("/unreliable", |r| r.method(http::Method::GET).with_async(unreliable_work))
+            .default_resource(|r| {
+                // Use a 404 handler for get requests
+                r.method(Method::GET).f(not_found);
+
+                // All other requests get a method not allowed response, the actix example adds an
+                // additional negative predicate on this, but it doesn't seem necessary.
+                r.f(|_| HttpResponse::MethodNotAllowed());
+            })
     })
         .bind("127.0.0.1:8000")
         .unwrap()
