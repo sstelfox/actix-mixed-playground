@@ -3,6 +3,9 @@ use std::fmt;
 use std::error::Error;
 use rand::prelude::*;
 
+#[cfg(test)]
+use actix::actors::mocker::Mocker;
+
 #[derive(Debug)]
 pub enum SupervisedActorError {
     IntermittentFailure
@@ -25,9 +28,9 @@ impl fmt::Display for SupervisedActorError {
 }
 
 #[derive(Default)]
-pub struct SupervisedActor;
+pub struct SupervisedActorInt;
 
-impl Actor for SupervisedActor {
+impl Actor for SupervisedActorInt {
     type Context = Context<Self>;
 
     fn started(&mut self, _: &mut Context<Self>) {
@@ -44,13 +47,13 @@ impl Actor for SupervisedActor {
     }
 }
 
-impl SystemService for SupervisedActor {
+impl SystemService for SupervisedActorInt {
     fn service_started(&mut self, _ctx: &mut Context<Self>) {
         info!("Starting up supervised actor as a service...");
     }
 }
 
-impl actix::Supervised for SupervisedActor {
+impl actix::Supervised for SupervisedActorInt {
     fn restarting(&mut self, _ctx: &mut Context<Self>) {
         info!("SupervisedActor failed for some reason and is now being restarted");
     }
@@ -59,7 +62,7 @@ impl actix::Supervised for SupervisedActor {
 #[derive(Message)]
 pub struct Simple;
 
-impl Handler<Simple> for SupervisedActor {
+impl Handler<Simple> for SupervisedActorInt {
     type Result = ();
 
     fn handle(&mut self, _: Simple, _ctx: &mut Context<Self>) {
@@ -70,7 +73,7 @@ impl Handler<Simple> for SupervisedActor {
 #[derive(Message)]
 pub struct StopActor;
 
-impl Handler<StopActor> for SupervisedActor {
+impl Handler<StopActor> for SupervisedActorInt {
     type Result = ();
 
     fn handle(&mut self, _: StopActor, ctx: &mut Context<Self>) {
@@ -85,7 +88,7 @@ impl Message for RandomWork {
     type Result = Result<u32, SupervisedActorError>;
 }
 
-impl Handler<RandomWork> for SupervisedActor {
+impl Handler<RandomWork> for SupervisedActorInt {
     type Result = Result<u32, SupervisedActorError>;
 
     fn handle(&mut self, _: RandomWork, _ctx: &mut Context<Self>) -> Self::Result {
@@ -94,19 +97,19 @@ impl Handler<RandomWork> for SupervisedActor {
     }
 }
 
-pub struct UnreliableWork;
+pub struct UnreliableWork(pub bool);
 
 impl Message for UnreliableWork {
     type Result = Result<String, SupervisedActorError>;
 }
 
-impl Handler<UnreliableWork> for SupervisedActor {
+impl Handler<UnreliableWork> for SupervisedActorInt {
     type Result = Result<String, SupervisedActorError>;
 
-    fn handle(&mut self, _: UnreliableWork, _ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, data: UnreliableWork, _ctx: &mut Context<Self>) -> Self::Result {
         info!("Attempting to do something unreliable");
 
-        if thread_rng().gen() {
+        if data.0 {
             info!("Successfully did the thing!");
             Ok(String::from("We did it just fine!"))
         } else {
@@ -115,3 +118,8 @@ impl Handler<UnreliableWork> for SupervisedActor {
         }
     }
 }
+
+#[cfg(not(test))]
+pub type SupervisedActor = SupervisedActorInt;
+#[cfg(test)]
+pub type SupervisedActor = Mocker<SupervisedActorInt>;

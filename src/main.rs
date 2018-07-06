@@ -12,6 +12,7 @@ use actix::prelude::*;
 use actix_web::{http, middleware, server, App, Error, HttpRequest, HttpResponse};
 use dotenv::dotenv;
 use futures::Future;
+use rand::prelude::*;
 
 mod supervised_actor;
 
@@ -48,8 +49,10 @@ fn random_work(_req: HttpRequest) -> impl Future<Item = HttpResponse, Error = Er
 }
 
 fn unreliable_work(_req: HttpRequest) -> impl Future<Item = HttpResponse, Error = Error> {
+    let success = thread_rng().gen();
+
     supervised_actor::SupervisedActor::from_registry()
-        .send(supervised_actor::UnreliableWork)
+        .send(supervised_actor::UnreliableWork(success))
         .from_err()
         .and_then(|res| {
             match res {
