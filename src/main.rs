@@ -19,9 +19,6 @@ use rand::prelude::*;
 
 mod supervised_actor;
 
-#[cfg(test)]
-mod tests;
-
 fn simple(_req: HttpRequest) -> &'static str {
     supervised_actor::SupervisedActor::from_registry()
         .do_send(supervised_actor::Simple);

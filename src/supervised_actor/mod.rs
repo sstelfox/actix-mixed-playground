@@ -3,6 +3,9 @@ use std::fmt;
 use std::error::Error;
 use rand::prelude::*;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug)]
 pub enum SupervisedActorError {
     IntermittentFailure
