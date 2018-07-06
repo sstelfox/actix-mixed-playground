@@ -5,6 +5,9 @@ extern crate env_logger;
 extern crate futures;
 extern crate rand;
 
+#[cfg(test)]
+extern crate tokio_core;
+
 #[macro_use]
 extern crate log;
 
@@ -15,6 +18,9 @@ use futures::Future;
 use rand::prelude::*;
 
 mod supervised_actor;
+
+#[cfg(test)]
+mod tests;
 
 fn simple(_req: HttpRequest) -> &'static str {
     supervised_actor::SupervisedActor::from_registry()
