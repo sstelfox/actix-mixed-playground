@@ -16,20 +16,22 @@ use futures::Future;
 mod supervised_actor;
 
 fn simple(_req: HttpRequest) -> &'static str {
-    let act = Arbiter::system_registry().get::<supervised_actor::SupervisedActor>();
-    act.do_send(supervised_actor::Simple);
+    supervised_actor::SupervisedActor::from_registry()
+        .do_send(supervised_actor::Simple);
+
     "Did something very basic\n"
 }
 
 fn stop(_req: HttpRequest) -> &'static str {
-    let act = Arbiter::system_registry().get::<supervised_actor::SupervisedActor>();
-    act.do_send(supervised_actor::StopActor);
+    supervised_actor::SupervisedActor::from_registry()
+        .do_send(supervised_actor::StopActor);
+
     "Stopping the background worker\n"
 }
 
 fn random_work(_req: HttpRequest) -> impl Future<Item = HttpResponse, Error = Error> {
-    let act = Arbiter::system_registry().get::<supervised_actor::SupervisedActor>();
-    act.send(supervised_actor::RandomWork)
+    supervised_actor::SupervisedActor::from_registry()
+        .send(supervised_actor::RandomWork)
         .from_err()
         .and_then(|res| {
             match res {
@@ -46,8 +48,8 @@ fn random_work(_req: HttpRequest) -> impl Future<Item = HttpResponse, Error = Er
 }
 
 fn unreliable_work(_req: HttpRequest) -> impl Future<Item = HttpResponse, Error = Error> {
-    let act = Arbiter::system_registry().get::<supervised_actor::SupervisedActor>();
-    act.send(supervised_actor::UnreliableWork)
+    supervised_actor::SupervisedActor::from_registry()
+        .send(supervised_actor::UnreliableWork)
         .from_err()
         .and_then(|res| {
             match res {
@@ -69,7 +71,10 @@ fn main() {
 
     let sys = actix::System::new("playground");
 
-    Arbiter::system_registry().init_actor(|_ctx| {
+    supervised_actor::SupervisedActor::init_actor(|_| {
+        // The actor can have a custom initialization defined here. Either way this will trigger
+        // the actor to start up before something requests it. This 'warm up' period ensures
+        // requests that will make use of this later have a flat performance profile.
         supervised_actor::SupervisedActor::default()
     });
 
