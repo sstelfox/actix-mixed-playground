@@ -12,7 +12,7 @@ extern crate tokio_core;
 extern crate log;
 
 use actix::prelude::*;
-use actix_web::http::{self, Method};
+use actix_web::http::{self, Method, NormalizePath};
 use actix_web::{middleware, server, App, Error, HttpRequest, HttpResponse, Result};
 use dotenv::dotenv;
 use futures::Future;
@@ -95,10 +95,15 @@ fn main() {
         App::new()
             .middleware(middleware::Logger::default())
             .resource("/", |r| r.method(http::Method::GET).with(simple))
-            .resource("/stop", |r| r.method(http::Method::GET).with(stop))
-            .resource("/random", |r| r.method(http::Method::GET).with_async(random_work))
-            .resource("/unreliable", |r| r.method(http::Method::GET).with_async(unreliable_work))
+            .resource("/stop/", |r| r.method(http::Method::GET).with(stop))
+            .resource("/random/", |r| r.method(http::Method::GET).with_async(random_work))
+            .resource("/unreliable/", |r| r.method(http::Method::GET).with_async(unreliable_work))
             .default_resource(|r| {
+                // Attempt to normalize the path before 404'ing. In general I'd prefer clients to
+                // be forced into good behavior and not allow them to be loose with their paths,
+                // but this is a good example.
+                r.method(Method::GET).h(NormalizePath::default());
+
                 // Use a 404 handler for get requests
                 r.method(Method::GET).f(not_found);
 
